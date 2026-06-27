@@ -22,22 +22,32 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cookieParser());
 
+// Normalize frontend URL (remove trailing slash) to avoid origin mismatch
+const normalizedFrontendUrl = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.replace(/\/+$/, "")
+    : undefined;
+
 const allowedOrigins = [
-    process.env.FRONTEND_URL,
+    normalizedFrontendUrl,
     "http://localhost:5173",
-    "http://127.0.0.1:5173"
+    "http://127.0.0.1:5173",
 ].filter(Boolean);
 
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error("Not allowed by CORS"));
-        }
-    },
-    credentials: true
-}));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            // allow requests with no origin like server-to-server or curl
+            if (!origin) return callback(null, true);
+
+            // allow if origin exactly matches one of the allowed origins
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+
+            // otherwise block
+            return callback(new Error("Not allowed by CORS"));
+        },
+        credentials: true,
+    })
+);
  
 // apis
 app.use("/api/v1/media", mediaRoute);
